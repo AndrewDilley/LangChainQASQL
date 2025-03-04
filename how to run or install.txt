@@ -1,0 +1,13 @@
+To install if starting from scratch:
+
+python -m venv venv
+.\venv\Scripts\activate
+pip install -r requirements.txt
+
+
+To run:
+
+cd C:\Temp\sql-demo\
+.\venv\Scripts\activate
+python .\sql-demo.py
+

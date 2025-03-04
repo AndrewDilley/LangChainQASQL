@@ -1,0 +1,19 @@
+# Ignore environment files
+.env
+.env*
+
+# Ignore Docker volumes
+volumes/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore virtual environment
+venv/
+
+# Exclude Dockerfiles
+Dockerfile
+Dockerfile.*
+ 
