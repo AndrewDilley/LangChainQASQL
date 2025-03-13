@@ -96,7 +96,12 @@ system_message = prompt_template.format(dialect="mssql", top_k=5)
 system_message += "\n\nNote: All table and view names must be fully qualified with the schema prefix 'src.' in the SQL query."
 
 # Append a note for the correct join condition
-system_message += "\n\nNote: When joining 'vw_Maximo_Locations' and 'vw_Maximo_WorkOrders', use 'vw_Maximo_Locations.location_code' to join with 'vw_Maximo_WorkOrders.location_id'."
+#system_message += "\n\nNote: When joining 'vw_Maximo_Locations' and 'vw_Maximo_WorkOrders', use 'vw_Maximo_Locations.location_code' to join with 'vw_Maximo_WorkOrders.location_id'."
+
+system_message += "\n\nNote: When joining 'vw_Maximo_Locations' and 'vw_Maximo_WorkOrders', use 'vw_Maximo_Locations.location_description' to join with 'vw_Maximo_WorkOrders.location_description'."
+
+system_message += "\n\nNote: When joining 'vw_Maximo_Asset' and 'vw_Maximo_WorkOrders', use 'vw_Maximo_Asset.assetnum' to join with 'vw_Maximo_WorkOrders.asset_id'."
+
 
 #initialising the agent
 
@@ -347,7 +352,143 @@ agent_executor = create_react_agent(llm, tools, prompt=system_message)
 
 #question = "what are 5 examples of the values in maximo_assets.assetnum with the associated asset_description, location_code, location_id and location_desc?"
 
-question = "what are 5 examples of the values in maximo_workorders.asset_id?"
+#this works
+#question = "Which location has the most work orders?"
+
+#     query: SELECT TOP 5 l.location_description, COUNT(w.wonum) AS work_order_count
+# FROM src.vw_Maximo_Locations l
+# JOIN src.vw_Maximo_WorkOrders w ON l.location_description = w.location_description
+# GROUP BY l.location_description
+# ORDER BY work_order_count DESC;
+# ================================= Tool Message =================================
+# Name: sql_db_query
+
+# [('Hamilton Township', 3916), ('Portland Township', 3220), ('Hamilton - Digby Rd SPS Catchment', 1658), ('Warrnambool WRP', 1643), ('Port Fairy Township', 1215)]
+# ================================== Ai Message ==================================
+
+# The locations with the most work orders are:
+
+# 1. **Hamilton Township** - 3916 work orders
+# 2. **Portland Township** - 3220 work orders
+# 3. **Hamilton - Digby Rd SPS Catchment** - 1658 work orders
+# 4. **Warrnambool WRP** - 1643 work orders
+# 5. **Port Fairy Township** - 1215 work orders
+
+# this works
+#question = "Which asset has the most work orders?"
+
+#     query: SELECT TOP 5 a.assetnum, a.asset_description, COUNT(w.wonum) AS work_order_count
+# FROM src.vw_Maximo_Asset a
+# JOIN src.vw_Maximo_WorkOrders w ON a.assetnum = w.asset_id
+# GROUP BY a.assetnum, a.asset_description
+# ORDER BY work_order_count DESC;
+# ================================= Tool Message =================================
+# Name: sql_db_query
+
+# [('23230', 'Corporate - Warrnambool Depot', 451), ('23257', 'Warrnambool - Pertobe Rd SPS', 424), ('23254', 'Warrnambool - Morriss Rd SPS', 368), ('23242', 'Warrnambool - Dickson St SPS', 350), ('107024', 'Corporate - Portland Depot - Wyatt St (at Storage)', 315)]
+# ================================== Ai Message ==================================
+
+# The asset with the most work orders is **Corporate - Warrnambool Depot** with a total of **451** work orders. Here are the top five assets with the most work orders:
+
+# 1. **Asset Number:** 23230 - **Asset Description:** Corporate - Warrnambool Depot - **Work Orders:** 451
+# 2. **Asset Number:** 23257 - **Asset Description:** Warrnambool - Pertobe Rd SPS - **Work Orders:** 424
+# 3. **Asset Number:** 23254 - **Asset Description:** Warrnambool - Morriss Rd SPS - **Work Orders:** 368
+# 4. **Asset Number:** 23242 - **Asset Description:** Warrnambool - Dickson St SPS - **Work Orders:** 350
+# 5. **Asset Number:** 107024 - **Asset Description:** Corporate - Portland Depot - Wyatt St (at Storage) - **Work Orders:** 315
+# P
+
+# this works
+# question = "for Asset Number: 23257, please provide a breakdown of the number of workorders for 2022, 2023 and 2024?"
+
+#   Args:
+#     query: SELECT YEAR(statusdate) AS WorkOrderYear, COUNT(wonum) AS WorkOrderCount
+# FROM src.vw_Maximo_WorkOrders
+# WHERE asset_id = '23257' AND YEAR(statusdate) IN (2022, 2023, 2024)
+# GROUP BY YEAR(statusdate)
+# ================================= Tool Message =================================
+# Name: sql_db_query
+
+# [(2022, 79), (2023, 88), (2024, 154)]
+# ================================== Ai Message ==================================
+
+# The breakdown of work orders for Asset Number 23257 is as follows:
+
+# - **2022**: 79 work orders
+# - **2023**: 88 work orders
+# - **2024**: 154 work orders
+
+
+# this works
+# question = "Please provide the top 5 highest ranking assets outside of Warrnambool and not a depot in terms of number of workorders generated for 2024, returning the asset number and asset description?"
+
+#     query: SELECT a.assetnum, a.asset_description, COUNT(w.wonum) AS workorder_count
+# FROM src.vw_Maximo_Asset a
+# JOIN src.vw_Maximo_WorkOrders w ON a.assetnum = w.asset_id
+# JOIN src.vw_Maximo_Locations l ON w.location_description = l.location_description
+# WHERE l.location_description NOT LIKE '%Warrnambool%'
+# AND l.locationclassification_desc NOT LIKE '%Depot%'
+# AND YEAR(w.reportdate) = 2024
+# GROUP BY a.assetnum, a.asset_description
+# ORDER BY workorder_count DESC
+# OFFSET 0 ROWS FETCH NEXT 5 ROWS ONLY;
+# ================================= Tool Message =================================
+# Name: sql_db_query
+
+# [('92142', 'Konongwootong Reservoir - Raw Water Storage (Emergency)', 66), ('22948', 'South Otway - Plantation Rd Reservoir - Raw Water Storage', 58), ('92592', 'Grampians - Cruckoor Reservoir - Raw Water Storage', 53), ('22767', 'Camperdown - Park Lane Service Basin - Potable Water Storage', 52), ('344570', 'Casterton - Arundel Rd Basin Square - Storage - Floating Cover', 52)]
+# ================================== Ai Message ==================================
+
+# The top 5 highest-ranking assets outside of Warrnambool and not classified as a depot, based on the number of work orders generated for 2024, are:
+
+# 1. **Asset Number**: 92142
+#    **Asset Description**: Konongwootong Reservoir - Raw Water Storage (Emergency)
+#    **Work Orders**: 66
+
+# 2. **Asset Number**: 22948
+#    **Asset Description**: South Otway - Plantation Rd Reservoir - Raw Water Storage
+#    **Work Orders**: 58
+
+# 3. **Asset Number**: 92592
+#    **Asset Description**: Grampians - Cruckoor Reservoir - Raw Water Storage
+#    **Work Orders**: 53
+
+# 4. **Asset Number**: 22767
+#    **Asset Description**: Camperdown - Park Lane Service Basin - Potable Water Storage
+#    **Work Orders**: 52
+
+# 5. **Asset Number**: 344570
+#    **Asset Description**: Casterton - Arundel Rd Basin Square - Storage - Floating Cover
+#    **Work Orders**: 52
+
+# this works
+# question = "if you add the number of work orders for January 2022, January 2023 and January 2024, and call this the January Total, and repeat this for the other 11 months, which month is highest and which month is lowest?"
+
+#     query: SELECT MONTH(statusdate) AS Month, COUNT(*) AS WorkOrderCount
+# FROM src.vw_Maximo_WorkOrders
+# WHERE YEAR(statusdate) IN (2022, 2023, 2024)
+# GROUP BY MONTH(statusdate)
+# ================================= Tool Message =================================
+# Name: sql_db_query
+
+# [(1, 4596), (2, 3498), (3, 3642), (4, 1596), (5, 8311), (6, 4101), (7, 5015), (8, 5319), (9, 4057), (10, 4055), (11, 5779), (12, 4869)]
+# ================================== Ai Message ==================================
+
+# The work order counts for each month from January to December for the years 2022, 2023, and 2024 are as follows:
+
+# - January: 4596
+# - February: 3498
+# - March: 3642
+# - April: 1596
+# - May: 8311
+# - June: 4101
+# - July: 5015
+# - August: 5319
+# - September: 4057
+# - October: 4055
+# - November: 5779
+# - December: 4869
+
+# From this data, **May** has the highest total with **8311** work orders, while **April** has the lowest total with **1596** work orders.
+
 
 for step in agent_executor.stream(
     {"messages": [{"role": "user", "content": question}]},
