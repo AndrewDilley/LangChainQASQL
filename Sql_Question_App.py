@@ -29,6 +29,8 @@ tools = toolkit.get_tools()
 prompt_template = hub.pull("langchain-ai/sql-agent-system-prompt")
 system_message = prompt_template.format(dialect="mssql", top_k=5)
 system_message += "\n\nNote: All table and view names must be fully qualified with the schema prefix 'src.' in the SQL query."
+system_message += "\n\nNote: When joining 'vw_Maximo_Locations' and 'vw_Maximo_WorkOrders', use 'vw_Maximo_Locations.location_description' to join with 'vw_Maximo_WorkOrders.location_description'."
+system_message += "\n\nNote: When joining 'vw_Maximo_Asset' and 'vw_Maximo_WorkOrders', use 'vw_Maximo_Asset.assetnum' to join with 'vw_Maximo_WorkOrders.asset_id'."
 
 agent_executor = create_react_agent(llm, tools, prompt=system_message)
 
