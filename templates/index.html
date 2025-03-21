@@ -4,15 +4,26 @@
     <meta charset="UTF-8">
     <title>SQL Question Interface</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Include Chart.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
         <h2>Ask a Question</h2>
         <textarea id="question" rows="4" placeholder="Enter your question here..." style="width:100%; padding:10px;"></textarea>
+        <div style="margin-top:10px;">
+            <input type="checkbox" id="visualize" />
+            <label for="visualize">Generate Visualization</label>
+        </div>
         <button onclick="submitQuestion()">Submit</button>
 
         <div id="response" class="result-section">
             Your answer will appear here.
+        </div>
+
+        <!-- Chart container for visualizations -->
+        <div id="chartContainer" style="display:none; margin-top:20px;">
+            <canvas id="resultChart"></canvas>
         </div>
     </div>
 
