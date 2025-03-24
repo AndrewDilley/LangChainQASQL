@@ -39,17 +39,52 @@ system_message = prompt_template.format(dialect="mssql", top_k=5)
 system_message += "\n\nNote: All table and view names must be fully qualified with the schema prefix 'src.' in the SQL query."
 system_message += "\n\nNote: When joining 'vw_Maximo_Locations' and 'vw_Maximo_WorkOrders', use 'vw_Maximo_Locations.location_description' to join with 'vw_Maximo_WorkOrders.location_description'."
 system_message += "\n\nNote: When joining 'vw_Maximo_Asset' and 'vw_Maximo_WorkOrders', use 'vw_Maximo_Asset.assetnum' to join with 'vw_Maximo_WorkOrders.asset_id'."
+system_message += "\n\nNote: For date-based queries (e.g., those that filter by month, year, or date ranges), ensure that the SQL query selects and returns the year along with the month and work order count, with the output formatted as (work_order_count, month, year) — where the month is the second element and the year is the third."
+system_message += "\n\nNote: For non-date-based queries (e.g., querying for assets with the highest work orders), this requirement does not apply and a different data format may be used."
+
 
 agent_executor = create_react_agent(llm, tools, prompt=system_message)
+
+# def generate_dynamic_visualization_data(steps, visualize):
+#     """
+#     Dynamically parse the agent's output to create chart data.
+#     1. If 'visualize' is False, return None.
+#     2. Otherwise, iterate over each step:
+#        - If the content is a Python literal list of tuples, parse it.
+#        - Otherwise, if it contains bullet-point text with '###' headings and month bullets,
+#          parse that text.
+#     3. Return the first successfully parsed data or None if nothing could be parsed.
+#     """
+#     if not visualize:
+#         return None
+
+#     for step in steps:
+#         content = step.get('content', '').strip()
+
+#         # 1) Try parsing as Python literal data, e.g. [(1344, 6, 2023), (951, 7, 2023), ...]
+#         if content.startswith('[') and content.endswith(']'):
+#             chart_data = _parse_python_list_literal(content)
+#             if chart_data is not None:
+#                 return chart_data
+
+#         # 2) Otherwise, try parsing the bullet-point text format
+#         if '###' in content:
+#             chart_data = _parse_bullet_point_text(content)
+#             if chart_data is not None and len(chart_data['labels']) > 0:
+#                 return chart_data
+
+#     return None
+
 
 def generate_dynamic_visualization_data(steps, visualize):
     """
     Dynamically parse the agent's output to create chart data.
+    
     1. If 'visualize' is False, return None.
     2. Otherwise, iterate over each step:
-       - If the content is a Python literal list of tuples, parse it.
-       - Otherwise, if it contains bullet-point text with '###' headings and month bullets,
-         parse that text.
+       - Attempt to parse as a Python literal list for date-based queries (e.g., [(work_order_count, month, year), ...]).
+       - If that fails, try parsing for multi-series data (e.g., [(work_order_count, asset_id), ...]).
+       - Finally, try parsing bullet-point text with a year header and month-value bullets.
     3. Return the first successfully parsed data or None if nothing could be parsed.
     """
     if not visualize:
@@ -58,9 +93,13 @@ def generate_dynamic_visualization_data(steps, visualize):
     for step in steps:
         content = step.get('content', '').strip()
 
-        # 1) Try parsing as Python literal data, e.g. [(1344, 6, 2023), (951, 7, 2023), ...]
+        # 1) Try parsing as Python literal data for 3-element tuples
         if content.startswith('[') and content.endswith(']'):
             chart_data = _parse_python_list_literal(content)
+            if chart_data is not None:
+                return chart_data
+            # 1.1) If that fails, try parsing for multi-series (2-element tuples)
+            chart_data = _parse_multi_series_data(content)
             if chart_data is not None:
                 return chart_data
 
@@ -71,6 +110,7 @@ def generate_dynamic_visualization_data(steps, visualize):
                 return chart_data
 
     return None
+
 
 def _parse_python_list_literal(content):
     """
@@ -127,6 +167,31 @@ def _parse_bullet_point_text(content):
             values.append(value)
     
     return {"labels": labels, "values": values}
+
+
+def _parse_multi_series_data(content):
+    """
+    Parse a Python list literal of tuples for multi-series data,
+    where each tuple is (work_order_count, asset_id).
+    Returns a dict in the format:
+      { 'labels': [<common label>], 'datasets': [ { 'label': asset_id, 'data': [work_order_count] }, ... ] }
+    Assumes the query is for a single time period (e.g., June 2023).
+    """
+    try:
+        data = ast.literal_eval(content)
+        # Check if it's a list of 2-element tuples
+        if isinstance(data, list) and all(isinstance(item, tuple) and len(item) == 2 for item in data):
+            # Here, you may need to determine the common label (e.g., "June 2023").
+            # This could be extracted from the query or hard-coded if known.
+            common_label = "June 2023"
+            datasets = []
+            for count, asset in data:
+                datasets.append({"label": str(asset), "data": [count]})
+            return {"labels": [common_label], "datasets": datasets}
+    except Exception:
+        return None
+    return None
+
 
 @app.route('/')
 def index():
